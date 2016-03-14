@@ -14,8 +14,15 @@ setClass(
 
 #' Execute a statement on a given database connection.
 #' 
+#' To retrieve results a chunk at a time, use \code{dbSendQuery},
+#' \code{dbFetch}, then \code{ClearResult}. Alternatively, if you want all the
+#' results (and they'll fit in memory) use \code{dbGetQuery} which sends,
+#' fetches and clears for you.
+#' 
 #' @param conn An existing \code{\linkS4class{ODBCConnection}}
-#' @param statement a character vector of length 1 containing SQL
+#' @param statement  The SQL which you want to run
+#' @param res An object of class \code{\linkS4class{ODBCResult}}
+#' @param n Number of rows to return. If less than zero returns all rows.
 #' @param ... Other parameters passed on to methods
 #' @export
 #' @rdname odbc-query
@@ -29,9 +36,22 @@ setMethod("dbSendQuery", "ODBCConnection", function(conn, statement, ...) {
 #' Get DBMS metadata.
 #' 
 #' @param dbObj An object inheriting from \code{\linkS4class{ODBCConnection}}, \code{\linkS4class{ODBCDriver}}, or a \code{\linkS4class{ODBCResult}}
+#' @param ... Other parameters passed on to methods
 #' @export
-#' @rdname ODBCConnection-class
-setMethod("dbGetInfo", "ODBCConnection", function(dbObj, ...) {dbObj(dbObj@odbc)})
+setMethod("dbGetInfo", "ODBCConnection", function(dbObj, ...) {
+  info <- RODBC::odbcGetInfo(dbObj@odbc)
+  list(dbname = unname(info["DBMS_Name"]), 
+       db.version = unname(info["DBMS_Ver"]), 
+       username = "", 
+       host = "", 
+       port = "",
+       sourcename = unname(info["Data_Source_Name"]),
+       servername = unname(info["Server_Name"]),
+       drivername = unname(info["Driver_Name"]),
+       odbc.version = unname(info["ODBC_Ver"]),
+       driver.version = unname(info["Driver_Ver"]),
+       odbcderiver.version = unname(info["Driver_ODBC_Ver"]))
+})
 
 
 #' List fields in specified table.
@@ -90,6 +110,7 @@ setMethod("dbWriteTable", c("ODBCConnection", "character", "data.frame"), functi
 #' 
 #' @param conn An existing \code{\linkS4class{ODBCConnection}}
 #' @param name String, name of table. Match is case insensitive.
+#' @return boolean value which indicated whether the table exists or not
 #' @export
 setMethod("dbExistsTable", c("ODBCConnection", "character"), function(conn, name) {
   tolower(name) %in% tolower(dbListTables(conn))
